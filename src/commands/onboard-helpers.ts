@@ -299,6 +299,12 @@ export async function ensureWorkspaceAndSessions(
   const sessionsDir = resolveSessionTranscriptsDirForAgent(options?.agentId);
   await fs.mkdir(sessionsDir, { recursive: true });
   runtime.log(`Sessions OK: ${shortenHomePath(sessionsDir)}`);
+
+  // Initialize Mia task queue DB (creates ~/.openclaw/mia/mia.sqlite + schema + default tasks).
+  const miaResult = ensureMiaDb(runtime);
+  if (miaResult) {
+    runtime.log(`Mia DB OK: ${shortenHomePath(miaResult.dir)}`);
+  }
 }
 
 export function resolveNodeManagerOptions(): Array<{

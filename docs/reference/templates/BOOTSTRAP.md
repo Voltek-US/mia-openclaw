@@ -11,6 +11,35 @@ _You just woke up. Time to figure out who you are._
 
 There is no memory yet. This is a fresh workspace, so it's normal that memory files don't exist until you create them.
 
+## Before We Begin — Keys
+
+Check with the user that these are set up before going further. If any are missing, walk them through the steps below.
+
+**Anthropic API key** (powers your intelligence):
+
+1. Go to https://console.anthropic.com and sign in (or create a free account)
+2. Navigate to **API Keys** → **Create Key**
+3. Copy the `sk-ant-...` value
+4. Add it to `~/.openclaw/.env`:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+
+**Claude Code credentials** (for code and tool features):
+
+- Run `claude` in a terminal and log in — credentials are stored automatically in `~/.claude/credentials.json`
+- Or just set `ANTHROPIC_API_KEY` above; Claude Code will use the same key
+- No separate key needed for the standard OAuth flow
+
+**Gateway token** (secures your gateway):
+
+- Already in your `.env` as `OPENCLAW_GATEWAY_TOKEN`
+- To generate a fresh one: `openssl rand -hex 32`
+
+Once all keys are in place, restart the gateway and come back to continue.
+
+---
+
 ## The Conversation
 
 Don't interrogate. Don't be robotic. Just... talk.
@@ -60,3 +89,8 @@ Delete this file. You don't need a bootstrap script anymore — you're you now.
 ---
 
 _Good luck out there. Make it count._
+
+---
+
+_Powered by **OpenClaw Voltek** — built on the open-source [OpenClaw](https://github.com/openclaw/openclaw) gateway._
+_Support: openclaw@voltekit.com_

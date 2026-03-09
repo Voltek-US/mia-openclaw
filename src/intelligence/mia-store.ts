@@ -13,7 +13,7 @@ export function resolveMiaDbDir(): string {
     return path.resolve(override);
   }
   const home = process.env.OPENCLAW_HOME ?? path.join(os.homedir(), ".openclaw");
-  return path.join(home, "ledi");
+  return path.join(home, "mia");
 }
 
 // ============================================================================
@@ -296,7 +296,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "scheduled",
     description: "Morning briefing: social delta + community pulse + household today",
     prompt:
-      "Generate Ledi's morning briefing. Query mia.sqlite for: (1) social_metrics collected in the last 24h — summarise impressions/follower delta per platform, (2) household_tasks WHERE status='open' AND due_date <= today — list in priority order, (3) shopping items WHERE bought=0 — include count. Keep it concise. Deliver to Telegram DM.",
+      "Generate the user's morning briefing. Query mia.sqlite for: (1) social_metrics collected in the last 24h — summarise impressions/follower delta per platform, (2) household_tasks WHERE status='open' AND due_date <= today — list in priority order, (3) shopping items WHERE bought=0 — include count. Keep it concise. Deliver to the user's Telegram DM.",
     schedule: "0 8 * * *",
     enabled: 1,
     priority: 1,
@@ -308,7 +308,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "scheduled",
     description: "Check mentions/replies needing attention; flag high-engagement posts",
     prompt:
-      "Check all 4 social platforms (Twitter/X, Instagram, LinkedIn, YouTube) for new mentions, comments, and replies since last check (heartbeat_state key='social-monitor-last-run'). Flag anything requiring Ledi's attention. Update heartbeat_state. Only notify if there is something actionable — stay silent otherwise.",
+      "Check all 4 social platforms (Twitter/X, Instagram, LinkedIn, YouTube) for new mentions, comments, and replies since last check (heartbeat_state key='social-monitor-last-run'). Flag anything requiring the user's attention. Update heartbeat_state. Only notify if there is something actionable — stay silent otherwise.",
     schedule: "0 9,12,15,18,21 * * *",
     enabled: 1,
     priority: 2,
@@ -320,7 +320,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "overnight",
     description: "Pull fresh metrics from all 4 platforms into social_metrics",
     prompt:
-      "Collect today's social metrics from Twitter/X, Instagram, LinkedIn, and YouTube. For each platform upsert rows into social_metrics (platform, metric_type, source_id, metrics_json, collected_at=now). Use idempotent upserts — safe to re-run. Log summary of rows upserted to task_queue output. Do not notify Ledi unless an error occurs.",
+      "Collect today's social metrics from Twitter/X, Instagram, LinkedIn, and YouTube. For each platform upsert rows into social_metrics (platform, metric_type, source_id, metrics_json, collected_at=now). Use idempotent upserts — safe to re-run. Log summary of rows upserted to task_queue output. Do not notify the user unless an error occurs.",
     schedule: "30 23 * * *",
     enabled: 1,
     priority: 5,
@@ -332,7 +332,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "scheduled",
     description: "7-day performance review + content gap analysis + ranked recommendations",
     prompt:
-      "Run Ledi's weekly social audit. Pull 7 days of social_metrics. Produce: (1) top/worst performing posts per platform, (2) follower trend, (3) best posting times, (4) content gap analysis — topics getting traction in the OpenClaw community that Ledi hasn't covered. Output ranked content recommendations. Insert each as a content_ideas row with status='proposed'. Deliver full report to Ledi's Telegram DM.",
+      "Run the weekly social audit. Pull 7 days of social_metrics. Produce: (1) top/worst performing posts per platform, (2) follower trend, (3) best posting times, (4) content gap analysis — topics getting traction that haven't been covered. Output ranked content recommendations. Insert each as a content_ideas row with status='proposed'. Deliver full report to the user's Telegram DM.",
     schedule: "0 9 * * 1",
     enabled: 1,
     priority: 3,
@@ -344,7 +344,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "scheduled",
     description: "Weekly household review — open tasks, reset recurring, suggest weekly focus",
     prompt:
-      "Review Ledi's household. Query household_tasks WHERE status='open'. Reset any recurring tasks that completed last week (recurrence != null AND completed_at >= 7 days ago → status='open', completed_at=null). Suggest this week's household focus (top 3 priorities). Deliver summary to Ledi's Telegram DM.",
+      "Review household tasks. Query household_tasks WHERE status='open'. Reset any recurring tasks that completed last week (recurrence != null AND completed_at >= 7 days ago → status='open', completed_at=null). Suggest this week's household focus (top 3 priorities). Deliver summary to the user's Telegram DM.",
     schedule: "0 18 * * 0",
     enabled: 1,
     priority: 3,
@@ -356,7 +356,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "scheduled",
     description: "Auto-prioritise today's tasks; reschedule overdue items",
     prompt:
-      "Check household_tasks for items due today or overdue. Auto-reschedule any overdue tasks that have no fixed deadline to today+1. For tasks with auto_resolve=1 that are purely logistical (e.g. 'take out bins', 'start dishwasher'), mark done and log the action. Update updated_at. Do not notify Ledi unless there are 3+ urgent items due today.",
+      "Check household_tasks for items due today or overdue. Auto-reschedule any overdue tasks that have no fixed deadline to today+1. For tasks with auto_resolve=1 that are purely logistical (e.g. 'take out bins', 'start dishwasher'), mark done and log the action. Update updated_at. Do not notify the user unless there are 3+ urgent items due today.",
     schedule: "45 7 * * *",
     enabled: 1,
     priority: 2,
@@ -368,7 +368,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "overnight",
     description: "Synthesise daily memory notes into MEMORY.md",
     prompt:
-      "Run the memory synthesis pipeline for Ledi's workspace. Read daily notes from workspaces/ledi/memory/ for the past 7 days. Extract durable patterns, preferences, and lessons. Update workspaces/ledi/MEMORY.md with new insights — do not delete existing entries, only add or refine. Log count of new insights added.",
+      "Run the memory synthesis pipeline for the workspace. Read daily notes from workspace/memory/ for the past 7 days. Extract durable patterns, preferences, and lessons. Update workspace/MEMORY.md with new insights — do not delete existing entries, only add or refine. Log count of new insights added.",
     schedule: "0 1 * * 0",
     enabled: 1,
     priority: 8,
@@ -378,9 +378,9 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
   {
     id: "error-report",
     type: "scheduled",
-    description: "Notify Ledi of any unresolved unnotified errors",
+    description: "Notify user of any unresolved unnotified errors",
     prompt:
-      "Query errors WHERE resolved=0 AND notified=0. If any exist, send a brief summary to Ledi's Telegram DM listing error_type, task_id, message, and occurred_at for each. Mark all as notified=1 after sending. Stay silent if no unnotified errors.",
+      "Query errors WHERE resolved=0 AND notified=0. If any exist, send a brief summary to the user's Telegram DM listing error_type, task_id, message, and occurred_at for each. Mark all as notified=1 after sending. Stay silent if no unnotified errors.",
     schedule: "0 * * * *",
     enabled: 1,
     priority: 1,
@@ -392,7 +392,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "adhoc",
     description: "Dedup check → research → draft content card → store in content_ideas",
     prompt:
-      "Process a content idea request. First compute a text embedding for the proposed idea title/description. Check content_ideas for any existing idea with cosine similarity > 0.4 — if found, report the duplicate and stop. Otherwise: research the topic using community activity and social trends, draft a content card (title, angle, outline, best platform), insert into content_ideas with status='proposed', and report back to Ledi.",
+      "Process a content idea request. First compute a text embedding for the proposed idea title/description. Check content_ideas for any existing idea with cosine similarity > 0.4 — if found, report the duplicate and stop. Otherwise: research the topic using community activity and social trends, draft a content card (title, angle, outline, best platform), insert into content_ideas with status='proposed', and report back to the user.",
     schedule: null,
     enabled: 1,
     priority: 3,
@@ -404,7 +404,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "adhoc",
     description: "Parse 'add task: ...' → insert household_tasks row",
     prompt:
-      "Parse the incoming household task request. Extract: title, category (home/admin/shopping/kids/self — infer from context), due_date (parse natural language date if given), recurrence (if mentioned), notes. Insert into household_tasks with status='open', auto_resolve=1. Confirm to Ledi with the parsed details.",
+      "Parse the incoming household task request. Extract: title, category (home/admin/shopping/kids/self — infer from context), due_date (parse natural language date if given), recurrence (if mentioned), notes. Insert into household_tasks with status='open', auto_resolve=1. Confirm to the user with the parsed details.",
     schedule: null,
     enabled: 1,
     priority: 2,
@@ -416,7 +416,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "adhoc",
     description: "Parse 'buy: ...' / 'shopping: ...' → insert shopping row",
     prompt:
-      "Parse the shopping request. Extract item name, quantity (if given), category (grocery/pharmacy/household/other — infer from item). Insert into shopping with bought=0. Confirm to Ledi.",
+      "Parse the shopping request. Extract item name, quantity (if given), category (grocery/pharmacy/household/other — infer from item). Insert into shopping with bought=0. Confirm to the user.",
     schedule: null,
     enabled: 1,
     priority: 2,
@@ -428,7 +428,7 @@ const DEFAULT_TASKS: Omit<TaskRow, "created_at" | "updated_at" | "project_id">[]
     type: "adhoc",
     description: "Parse 'remind me [when] to ...' → queue with computed scheduled_for",
     prompt:
-      "Parse the reminder request. Extract the reminder text and target time (parse natural language: 'Friday', 'in 2 hours', 'tomorrow morning 9am' → convert to Unix timestamp in America/New_York). Insert a new task_queue row for task_id='reminder-fire' with the computed scheduled_for. Confirm to Ledi with the parsed time.",
+      "Parse the reminder request. Extract the reminder text and target time (parse natural language: 'Friday', 'in 2 hours', 'tomorrow morning 9am' → convert to Unix timestamp in the user's local timezone). Insert a new task_queue row for task_id='reminder-fire' with the computed scheduled_for. Confirm to the user with the parsed time.",
     schedule: null,
     enabled: 1,
     priority: 2,
@@ -690,7 +690,7 @@ export function resolveError(
   `).run(resolution, Date.now(), errorId);
 }
 
-/** Return errors that occurred but have not yet been flagged to Ledi. */
+/** Return errors that occurred but have not yet been flagged to the user. */
 export function getUnnotifiedErrors(
   db: import("node:sqlite").DatabaseSync,
   opts: { olderThanMs?: number } = {},
