@@ -1,9 +1,15 @@
 import type { SessionEntry } from "./types.js";
 
+// When SQLite is the source of truth, a short in-process TTL is used instead
+// of the file-based 45-second TTL. Cross-process reads are always fresh from
+// the DB; this cache only reduces structuredClone overhead within a process.
+export const SQLITE_SESSION_CACHE_TTL_MS = 5_000;
+
 type SessionStoreCacheEntry = {
   store: Record<string, SessionEntry>;
   loadedAt: number;
   storePath: string;
+  // For JSON path only:
   mtimeMs?: number;
   sizeBytes?: number;
   serialized?: string;
@@ -53,7 +59,11 @@ export function readSessionStoreCache(params: {
     invalidateSessionStoreCache(params.storePath);
     return null;
   }
-  if (params.mtimeMs !== cached.mtimeMs || params.sizeBytes !== cached.sizeBytes) {
+  // For the JSON path, also invalidate on mtime/size changes.
+  if (
+    params.mtimeMs !== undefined &&
+    (params.mtimeMs !== cached.mtimeMs || params.sizeBytes !== cached.sizeBytes)
+  ) {
     invalidateSessionStoreCache(params.storePath);
     return null;
   }

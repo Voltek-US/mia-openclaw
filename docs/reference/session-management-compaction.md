@@ -41,9 +41,10 @@ OpenClaw is designed around a single **Gateway process** that owns session state
 
 OpenClaw persists sessions in two layers:
 
-1. **Session store (`sessions.json`)**
+1. **Session store (`sessions.sqlite` / `sessions.json`)**
    - Key/value map: `sessionKey -> SessionEntry`
-   - Small, mutable, safe to edit (or delete entries)
+   - SQLite is the primary backend (see [/reference/session-store-sqlite](/reference/session-store-sqlite)); `sessions.json` is dual-written as a backup by default
+   - Small, mutable, safe to edit (or delete entries from `sessions.json`; SQLite is reconciled on next write)
    - Tracks session metadata (current session id, last activity, toggles, token counters, etc.)
 
 2. **Transcript (`<sessionId>.jsonl`)**
@@ -57,11 +58,12 @@ OpenClaw persists sessions in two layers:
 
 Per agent, on the Gateway host:
 
-- Store: `~/.openclaw/agents/<agentId>/sessions/sessions.json`
+- Store (primary): `~/.openclaw/agents/<agentId>/sessions/sessions.sqlite`
+- Store (backup): `~/.openclaw/agents/<agentId>/sessions/sessions.json`
 - Transcripts: `~/.openclaw/agents/<agentId>/sessions/<sessionId>.jsonl`
   - Telegram topic sessions: `.../<sessionId>-topic-<threadId>.jsonl`
 
-OpenClaw resolves these via `src/config/sessions.ts`.
+OpenClaw resolves these via `src/config/sessions/paths.ts`. For SQLite internals see [/reference/session-store-sqlite](/reference/session-store-sqlite).
 
 ---
 

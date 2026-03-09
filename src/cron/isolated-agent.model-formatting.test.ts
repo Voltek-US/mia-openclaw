@@ -101,6 +101,10 @@ describe("cron model formatting and precedence edge cases", () => {
   beforeEach(() => {
     vi.mocked(runEmbeddedPiAgent).mockClear();
     vi.mocked(loadModelCatalog).mockResolvedValue([]);
+    // Disable SQLite so loadSessionStore re-reads sessions.json on each call
+    // (the SQLite migration cache is process-global and would serve stale data
+    // when a test writes new entries between runs in the same temp directory).
+    vi.stubEnv("OPENCLAW_SESSION_SQLITE", "0");
   });
 
   // ------ provider/model string splitting ------

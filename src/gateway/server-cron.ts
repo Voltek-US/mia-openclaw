@@ -503,3 +503,47 @@ export function buildGatewayCronService(params: {
 
   return { cron, storePath, cronEnabled };
 }
+
+/**
+ * Register the built-in notification flush cron jobs.
+ *
+ * Jobs are idempotent — checked by name before adding so gateway restarts
+ * don't accumulate duplicate entries. Uses `systemEvent` payload so the
+ * flush runs as a plain CLI command in the isolated context without
+ * requiring an agent turn.
+ */
+export async function registerBuiltinNotifyFlushJobs(cron: CronService): Promise<void> {
+  const existing = await cron.list({ includeDisabled: true });
+  const existingNames = new Set(existing.map((j) => j.name));
+
+  const jobs: Array<{ name: string; expr: string; label: string }> = [
+    { name: "notify-flush-high", expr: "0 * * * *", label: "high" },
+    { name: "notify-flush-medium", expr: "0 */3 * * *", label: "medium" },
+  ];
+
+  for (const job of jobs) {
+    if (existingNames.has(job.name)) {
+      continue;
+    }
+    try {
+      await cron.add({
+        name: job.name,
+        description: `Flush ${job.label}-priority notification queue`,
+        enabled: true,
+        schedule: { kind: "cron", expr: job.expr },
+        sessionTarget: "main",
+        wakeMode: "next-heartbeat",
+        payload: { kind: "systemEvent", text: `openclaw notify flush --tier ${job.label}` },
+        delivery: { mode: "none" },
+      });
+    } catch (err) {
+      // Non-fatal: log and continue — the gateway should not fail to start
+      // because of a missing flush job.
+      const message = err instanceof Error ? err.message : String(err);
+      getChildLogger({ module: "cron" }).warn(
+        { jobName: job.name, err: message },
+        "cron: failed to register builtin notify flush job",
+      );
+    }
+  }
+}

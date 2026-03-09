@@ -24,6 +24,7 @@ import {
   getSerializedSessionStore,
   readSessionStoreCache,
   setSerializedSessionStore,
+  SQLITE_SESSION_CACHE_TTL_MS,
   writeSessionStoreCache,
 } from "./store-cache.js";
 import {
@@ -36,12 +37,43 @@ import {
   type SessionMaintenanceWarning,
 } from "./store-maintenance.js";
 import { applySessionStoreMigrations } from "./store-migrations.js";
+import { markJsonMigrationDone, migrateJsonToSqliteIfNeeded } from "./store-sqlite-migration.js";
+import {
+  clearSessionDbCacheForTest,
+  getSessionEntry,
+  loadAllSessionsFromDb,
+  openSessionDb,
+  syncSessionsToDb,
+  upsertSessionEntry,
+} from "./store-sqlite.js";
 import {
   mergeSessionEntry,
   mergeSessionEntryPreserveActivity,
   normalizeSessionRuntimeModelFields,
   type SessionEntry,
 } from "./types.js";
+
+// Set OPENCLAW_SESSION_SQLITE=0 to force JSON-only path (e.g. for debugging).
+function isSqliteEnabled(): boolean {
+  return process.env.OPENCLAW_SESSION_SQLITE !== "0";
+}
+
+// Set OPENCLAW_SESSION_SQLITE_ONLY=1 to stop dual-writing sessions.json.
+// Default is dual-write for safety during rollout.
+function isSqliteOnly(): boolean {
+  return process.env.OPENCLAW_SESSION_SQLITE_ONLY === "1";
+}
+
+// Per-storePath migration flag: track which stores have been migrated this process.
+const MIGRATED_STORE_PATHS = new Set<string>();
+
+function ensureMigrated(db: import("node:sqlite").DatabaseSync, storePath: string): void {
+  if (MIGRATED_STORE_PATHS.has(storePath)) {
+    return;
+  }
+  migrateJsonToSqliteIfNeeded({ db, storePath });
+  MIGRATED_STORE_PATHS.add(storePath);
+}
 
 const log = createSubsystemLogger("sessions/store");
 
@@ -167,6 +199,8 @@ function normalizeSessionStore(store: Record<string, SessionEntry>): void {
 
 export function clearSessionStoreCacheForTest(): void {
   clearSessionStoreCaches();
+  clearSessionDbCacheForTest();
+  MIGRATED_STORE_PATHS.clear();
   for (const queue of LOCK_QUEUES.values()) {
     for (const task of queue.pending) {
       task.reject(new Error("session store queue cleared for test"));
@@ -196,7 +230,32 @@ export function loadSessionStore(
   storePath: string,
   opts: LoadSessionStoreOptions = {},
 ): Record<string, SessionEntry> {
-  // Check cache first if enabled
+  // SQLite path: primary read source when available.
+  if (isSqliteEnabled()) {
+    const sessionsDir = path.dirname(storePath);
+    const db = openSessionDb(sessionsDir);
+    if (db) {
+      // Run one-time JSON→SQLite migration on first access per process.
+      ensureMigrated(db, storePath);
+
+      if (!opts.skipCache) {
+        const cached = readSessionStoreCache({ storePath, ttlMs: SQLITE_SESSION_CACHE_TTL_MS });
+        if (cached) {
+          return cached;
+        }
+      }
+
+      const store = loadAllSessionsFromDb(db);
+      applySessionStoreMigrations(store);
+      if (!opts.skipCache) {
+        writeSessionStoreCache({ storePath, store });
+      }
+      return structuredClone(store);
+    }
+  }
+
+  // JSON fallback path (node:sqlite unavailable or disabled via env var).
+  // Check cache first if enabled.
   if (!opts.skipCache && isSessionStoreCacheEnabled()) {
     const currentFileStat = getFileStatSnapshot(storePath);
     const cached = readSessionStoreCache({
@@ -344,6 +403,10 @@ async function saveSessionStoreUnlocked(
 ): Promise<void> {
   normalizeSessionStore(store);
 
+  // Track keys removed by maintenance so we can sync deletes to SQLite.
+  const removedSessionFiles = new Map<string, string | undefined>();
+  const removedKeys: string[] = [];
+
   if (!opts?.skipMaintenance) {
     // Resolve maintenance config once (avoids repeated loadConfig() calls).
     const maintenance = { ...resolveMaintenanceConfig(), ...opts?.maintenanceOverride };
@@ -388,14 +451,15 @@ async function saveSessionStoreUnlocked(
       });
     } else {
       // Prune stale entries and cap total count before serializing.
-      const removedSessionFiles = new Map<string, string | undefined>();
       const pruned = pruneStaleEntries(store, maintenance.pruneAfterMs, {
-        onPruned: ({ entry }) => {
+        onPruned: ({ key, entry }) => {
+          removedKeys.push(key);
           rememberRemovedSessionFile(removedSessionFiles, entry);
         },
       });
       const capped = capEntryCount(store, maintenance.maxEntries, {
-        onCapped: ({ entry }) => {
+        onCapped: ({ key, entry }) => {
+          removedKeys.push(key);
           rememberRemovedSessionFile(removedSessionFiles, entry);
         },
       });
@@ -432,9 +496,6 @@ async function saveSessionStoreUnlocked(
         }
       }
 
-      // Rotate the on-disk file if it exceeds the size threshold.
-      await rotateSessionFile(storePath, maintenance.rotateBytes);
-
       const diskBudget = await enforceSessionDiskBudget({
         store,
         storePath,
@@ -455,7 +516,49 @@ async function saveSessionStoreUnlocked(
   }
 
   await fs.promises.mkdir(path.dirname(storePath), { recursive: true });
+
+  // SQLite write path.
+  if (isSqliteEnabled()) {
+    const sessionsDir = path.dirname(storePath);
+    const db = openSessionDb(sessionsDir);
+    if (db) {
+      // Full sync: upsert surviving entries + delete any SQLite rows no longer in store
+      // (covers maintenance removals and legacy-key normalization by resolveSessionStoreEntry).
+      syncSessionsToDb(db, store);
+      // Mark migration as done so subsequent loadSessionStore calls skip the JSON read.
+      markJsonMigrationDone(db);
+      MIGRATED_STORE_PATHS.add(storePath);
+      dropSessionStoreObjectCache(storePath);
+
+      // Skip JSON write when running SQLite-only.
+      if (isSqliteOnly()) {
+        return;
+      }
+
+      // For the dual-write JSON backup path: populate the serialized cache from
+      // disk if it's empty (happens when we loaded from SQLite, not from JSON).
+      // This enables the no-op write detection below.
+      if (getSerializedSessionStore(storePath) === undefined) {
+        try {
+          const diskContent = fs.readFileSync(storePath, "utf-8");
+          setSerializedSessionStore(storePath, diskContent);
+        } catch {
+          // File doesn't exist yet; no-op detection skipped this save.
+        }
+      }
+    }
+  }
+
   const json = JSON.stringify(store, null, 2);
+
+  // Rotate the on-disk JSON file if it exceeds the size threshold (JSON path only).
+  if (!opts?.skipMaintenance) {
+    const maintenance = { ...resolveMaintenanceConfig(), ...opts?.maintenanceOverride };
+    if (maintenance.mode !== "warn") {
+      await rotateSessionFile(storePath, maintenance.rotateBytes);
+    }
+  }
+
   if (getSerializedSessionStore(storePath) === json) {
     updateSessionStoreWriteCaches({ storePath, store, serialized: json });
     return;
@@ -733,6 +836,30 @@ export async function updateSessionStoreEntry(params: {
 }): Promise<SessionEntry | null> {
   const { storePath, sessionKey, update } = params;
   return await withSessionStoreLock(storePath, async () => {
+    // SQLite optimized path: read/write a single row instead of the full store.
+    if (isSqliteEnabled()) {
+      const sessionsDir = path.dirname(storePath);
+      const db = openSessionDb(sessionsDir);
+      if (db) {
+        // Ensure migration has run so the entry exists in SQLite.
+        ensureMigrated(db, storePath);
+        const normalizedKey = normalizeStoreSessionKey(sessionKey);
+        const existing = getSessionEntry(db, normalizedKey);
+        if (!existing) {
+          return null;
+        }
+        const patch = await update(existing);
+        if (!patch) {
+          return existing;
+        }
+        const next = mergeSessionEntry(existing, patch);
+        upsertSessionEntry(db, normalizedKey, next);
+        dropSessionStoreObjectCache(storePath);
+        return next;
+      }
+    }
+
+    // JSON fallback path.
     const store = loadSessionStore(storePath, { skipCache: true });
     const resolved = resolveSessionStoreEntry({ store, sessionKey });
     const existing = resolved.existing;

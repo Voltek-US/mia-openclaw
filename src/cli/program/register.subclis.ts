@@ -160,6 +160,15 @@ const entries: SubCliEntry[] = [
     },
   },
   {
+    name: "notify",
+    description: "Manage the notification priority queue",
+    hasSubcommands: true,
+    register: async (program) => {
+      const mod = await import("../notify-cli/index.js");
+      mod.registerNotifyCli(program);
+    },
+  },
+  {
     name: "dns",
     description: "DNS helpers for wide-area discovery (Tailscale + CoreDNS)",
     hasSubcommands: true,
@@ -305,6 +314,24 @@ const entries: SubCliEntry[] = [
     register: async (program) => {
       const mod = await import("../diag-cli.js");
       mod.registerDiagCli(program);
+    },
+  },
+  {
+    name: "council",
+    description: "Business Intelligence Council — nightly expert analysis and recommendations",
+    hasSubcommands: true,
+    register: async (program) => {
+      const mod = await import("../council-cli.js");
+      mod.registerCouncilCli(program);
+    },
+  },
+  {
+    name: "crm",
+    description: "Personal CRM — contacts, tasks, follow-ups, and relationship intelligence",
+    hasSubcommands: true,
+    register: async (program) => {
+      const mod = await import("../crm-cli.js");
+      mod.registerCrmCli(program);
     },
   },
   {

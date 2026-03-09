@@ -108,7 +108,10 @@ describe("memory search citations", () => {
     expect(details.results[0]?.snippet).toMatch(/Source:/);
   });
 
-  it("suppresses citations for auto mode in group chats", async () => {
+  it("suppresses citations for auto mode in group chats (tool is unavailable)", async () => {
+    // Memory contains personal context (Confidential tier) — the tool is not
+    // created at all for group/channel sessions, which implicitly suppresses all
+    // citations (and all memory access) in shared contexts.
     setMemoryBackend("builtin");
     const cfg = asOpenClawConfig({
       memory: { citations: "auto" },
@@ -118,12 +121,7 @@ describe("memory search citations", () => {
       config: cfg,
       agentSessionKey: "agent:main:discord:group:c123",
     });
-    if (!tool) {
-      throw new Error("tool missing");
-    }
-    const result = await tool.execute("auto_mode_group", { query: "notes" });
-    const details = result.details as { results: Array<{ snippet: string }> };
-    expect(details.results[0]?.snippet).not.toMatch(/Source:/);
+    expect(tool).toBeNull();
   });
 });
 

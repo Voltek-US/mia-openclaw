@@ -23,6 +23,19 @@ import { detectModelProvider, normalizeAnthropicModel } from "./model-utils.js";
  * @param {boolean} [options.skipLog=false]              Skip interaction-store logging.
  * @returns {Promise<{ text: string, provider: string, durationMs: number }>}
  */
+/**
+ * Returns the repo-relative path to the prompt stack directory for the given model.
+ * The Claude stack uses natural-language, explanatory style; the OpenAI stack uses
+ * XML structure and ALL-CAPS emphasis.
+ *
+ * @param {string} model  Model name or alias.
+ * @returns {'prompts/claude' | 'prompts/openai'}
+ */
+export function getPromptStack(model) {
+  const provider = detectModelProvider(model);
+  return provider === "openai" ? "prompts/openai" : "prompts/claude";
+}
+
 export async function runLlm(prompt, options = {}) {
   const {
     model = "claude-sonnet-4-6",

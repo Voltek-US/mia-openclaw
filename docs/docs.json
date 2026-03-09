@@ -948,6 +948,7 @@
                   "concepts/system-prompt",
                   "concepts/context",
                   "concepts/agent-workspace",
+                  "concepts/prompt-stacks",
                   "concepts/oauth"
                 ]
               },
@@ -1002,6 +1003,7 @@
                   "tools/llm-task",
                   "tools/lobster",
                   "tools/loop-detection",
+                  "tools/crm",
                   "tools/reactions",
                   "tools/thinking",
                   "tools/web"
@@ -1036,6 +1038,10 @@
                   "tools/clawhub",
                   "tools/plugin"
                 ]
+              },
+              {
+                "group": "Knowledge Base",
+                "pages": ["kb/index", "kb/ingestion", "kb/querying", "kb/management"]
               },
               {
                 "group": "Extensions",
@@ -1314,6 +1320,7 @@
                   "reference/templates/BOOTSTRAP",
                   "reference/templates/HEARTBEAT",
                   "reference/templates/IDENTITY",
+                  "reference/templates/MEMORY",
                   "reference/templates/SOUL",
                   "reference/templates/TOOLS",
                   "reference/templates/USER"
@@ -1324,10 +1331,13 @@
                 "pages": [
                   "reference/wizard",
                   "reference/token-use",
+                  "reference/memory-synthesis",
                   "reference/secretref-credential-surface",
                   "reference/prompt-caching",
                   "reference/api-usage-costs",
                   "reference/transcript-hygiene",
+                  "reference/prompt-stacks",
+                  "reference/model-swap",
                   "date-time"
                 ]
               },

@@ -721,7 +721,7 @@ describe("sessions", () => {
     await expect(fs.stat(`${storePath}.lock`)).rejects.toThrow();
   });
 
-  it("updateSessionStoreEntry re-reads disk inside lock instead of using stale cache", async () => {
+  it("updateSessionStoreEntry reads fresh data even when in-process cache is stale", async () => {
     const mainSessionKey = "agent:main:main";
     const { storePath } = await createSessionStoreFixture({
       prefix: "updateSessionStoreEntry-cache-bypass",
@@ -736,21 +736,17 @@ describe("sessions", () => {
 
     // Prime the in-process cache with the original entry.
     expect(loadSessionStore(storePath)[mainSessionKey]?.thinkingLevel).toBe("low");
-    const originalStat = await fs.stat(storePath);
 
-    // Simulate an external writer that updates the store but preserves mtime.
-    const externalStore = JSON.parse(await fs.readFile(storePath, "utf-8")) as Record<
-      string,
-      Record<string, unknown>
-    >;
-    externalStore[mainSessionKey] = {
-      ...externalStore[mainSessionKey],
-      providerOverride: "anthropic",
-      updatedAt: 124,
-    };
-    await fs.writeFile(storePath, JSON.stringify(externalStore), "utf-8");
-    await fs.utimes(storePath, originalStat.atime, originalStat.mtime);
+    // Simulate a concurrent writer (via the store API so it is visible to SQLite).
+    await updateSessionStore(storePath, (store) => {
+      store[mainSessionKey] = {
+        ...store[mainSessionKey],
+        providerOverride: "anthropic",
+        updatedAt: 124,
+      };
+    });
 
+    // updateSessionStoreEntry must see the latest data (not the primed cache).
     await updateSessionStoreEntry({
       storePath,
       sessionKey: mainSessionKey,

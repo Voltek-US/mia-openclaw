@@ -9,18 +9,29 @@ import { createAgentsListTool } from "./tools/agents-list-tool.js";
 import { createBrowserTool } from "./tools/browser-tool.js";
 import { createCanvasTool } from "./tools/canvas-tool.js";
 import type { AnyAgentTool } from "./tools/common.js";
+import { createCrmTool } from "./tools/crm-tool.js";
 import { createCronTool } from "./tools/cron-tool.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageTool } from "./tools/image-tool.js";
+import { createLearningsQueryTool, createLearningsRecordTool } from "./tools/learnings-tool.js";
 import { createMessageTool } from "./tools/message-tool.js";
 import { createNodesTool } from "./tools/nodes-tool.js";
 import { createPdfTool } from "./tools/pdf-tool.js";
+import {
+  createProjectDeleteTool,
+  createProjectsQueryTool,
+  createProjectUpsertTool,
+} from "./tools/projects-tool.js";
 import { createSessionStatusTool } from "./tools/session-status-tool.js";
 import { createSessionsHistoryTool } from "./tools/sessions-history-tool.js";
 import { createSessionsListTool } from "./tools/sessions-list-tool.js";
 import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createSubagentsTool } from "./tools/subagents-tool.js";
+import { createToolBatchTool } from "./tools/tool-batch-tool.js";
+import { buildAllToolsMap, createToolExecuteTool } from "./tools/tool-execute-tool.js";
+import { DeferredToolRegistry } from "./tools/tool-registry.js";
+import { createToolSearchTool } from "./tools/tool-search-tool.js";
 import { createTtsTool } from "./tools/tts-tool.js";
 import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
 import { resolveWorkspaceRoot } from "./workspace-dir.js";
@@ -193,15 +204,56 @@ export function createOpenClawTools(
     ...(pdfTool ? [pdfTool] : []),
   ];
 
+  // ---------------------------------------------------------------------------
+  // Deferred tools — kept out of the initial context; discovered via tool_search.
+  // Candidates are tools that are rarely used or have large schemas.
+  // ---------------------------------------------------------------------------
+  const agentId = resolveSessionAgentId({
+    sessionKey: options?.agentSessionKey,
+    config: options?.config,
+  });
+
+  const deferredTools: AnyAgentTool[] = [
+    ...createCrmTool({
+      config: options?.config,
+      agentSessionKey: options?.agentSessionKey,
+    }),
+    ...createLearningsRecordTool({
+      agentId,
+      agentSessionKey: options?.agentSessionKey,
+      agentChannel: options?.agentChannel,
+    }),
+    ...createLearningsQueryTool({
+      agentId,
+      agentSessionKey: options?.agentSessionKey,
+      agentChannel: options?.agentChannel,
+    }),
+    ...createProjectUpsertTool({
+      agentSessionKey: options?.agentSessionKey,
+    }),
+    ...createProjectsQueryTool({
+      agentSessionKey: options?.agentSessionKey,
+    }),
+    ...createProjectDeleteTool({
+      agentSessionKey: options?.agentSessionKey,
+    }),
+  ].map((t) => ({ ...t, deferred: true as const }));
+
+  // Build deferred registry and meta-tools
+  const registry = new DeferredToolRegistry(deferredTools);
+  const toolSearchTool = createToolSearchTool(registry);
+  const toolExecuteTool = createToolExecuteTool(registry);
+
+  // tool_batch has access to both core and deferred tools
+  const allToolsMap = buildAllToolsMap(tools, registry);
+  const toolBatchTool = createToolBatchTool(allToolsMap);
+
   const pluginTools = resolvePluginTools({
     context: {
       config: options?.config,
       workspaceDir,
       agentDir: options?.agentDir,
-      agentId: resolveSessionAgentId({
-        sessionKey: options?.agentSessionKey,
-        config: options?.config,
-      }),
+      agentId,
       sessionKey: options?.agentSessionKey,
       sessionId: options?.sessionId,
       messageChannel: options?.agentChannel,
@@ -210,9 +262,12 @@ export function createOpenClawTools(
       senderIsOwner: options?.senderIsOwner ?? undefined,
       sandboxed: options?.sandboxed,
     },
-    existingToolNames: new Set(tools.map((tool) => tool.name)),
+    existingToolNames: new Set(
+      [...tools, toolSearchTool, toolExecuteTool, toolBatchTool].map((t) => t.name),
+    ),
     toolAllowlist: options?.pluginToolAllowlist,
   });
 
-  return [...tools, ...pluginTools];
+  // Return core tools + meta-tools + plugin tools (deferred tools stay out of initial context)
+  return [...tools, toolSearchTool, toolExecuteTool, toolBatchTool, ...pluginTools];
 }

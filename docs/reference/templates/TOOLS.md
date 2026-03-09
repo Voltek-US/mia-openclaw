@@ -5,43 +5,26 @@ read_when:
   - Bootstrapping a workspace manually
 ---
 
-# TOOLS.md - Local Notes
+# TOOLS.md
 
-Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
+## Channel IDs
 
-## What Goes Here
+<!-- Slack: C01234ABCDE, Discord: 123456789012345678 -->
 
-Things like:
+## File Paths
 
-- Camera names and locations
-- SSH hosts and aliases
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
+<!-- Config: ~/.config/app/config.json -->
+<!-- Logs: /var/log/app/ -->
+<!-- Data: ~/data/ -->
 
-## Examples
+## API Token Locations
 
-```markdown
-### Cameras
+<!-- ~/.config/app/token or $APP_TOKEN env var -->
 
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
+## SSH Hosts
 
-### SSH
+<!-- alias → hostname (e.g. home-server → 192.168.1.100) -->
 
-- home-server → 192.168.1.100, user: admin
+## Device Aliases
 
-### TTS
-
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
-```
-
-## Why Separate?
-
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
-
----
-
-Add whatever helps you do your job. This is your cheat sheet.
+<!-- camera-name → location, speaker-name → room -->

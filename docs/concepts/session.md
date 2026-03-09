@@ -64,9 +64,11 @@ All session state is **owned by the gateway** (the “master” OpenClaw). UI cl
 ## Where state lives
 
 - On the **gateway host**:
-  - Store file: `~/.openclaw/agents/<agentId>/sessions/sessions.json` (per agent).
+  - Store (primary): `~/.openclaw/agents/<agentId>/sessions/sessions.sqlite` (SQLite, WAL mode).
+  - Store (backup): `~/.openclaw/agents/<agentId>/sessions/sessions.json` (dual-written by default).
 - Transcripts: `~/.openclaw/agents/<agentId>/sessions/<SessionId>.jsonl` (Telegram topic sessions use `.../<SessionId>-topic-<threadId>.jsonl`).
 - The store is a map `sessionKey -> { sessionId, updatedAt, ... }`. Deleting entries is safe; they are recreated on demand.
+- For SQLite internals, migration details, and environment flags see [/reference/session-store-sqlite](/reference/session-store-sqlite).
 - Group entries may include `displayName`, `channel`, `subject`, `room`, and `space` to label sessions in UIs.
 - Session entries include `origin` metadata (label + routing hints) so UIs can explain where a session came from.
 - OpenClaw does **not** read legacy Pi/Tau session folders.
@@ -95,7 +97,7 @@ Maintenance runs during session-store writes, and you can trigger it on demand w
   2. cap entry count to `maxEntries` (oldest first)
   3. archive transcript files for removed entries that are no longer referenced
   4. purge old `*.deleted.<timestamp>` and `*.reset.<timestamp>` archives by retention policy
-  5. rotate `sessions.json` when it exceeds `rotateBytes`
+  5. rotate `sessions.json` when it exceeds `rotateBytes` (no-op when SQLite is active; WAL handles space recovery)
   6. if `maxDiskBytes` is set, enforce disk budget toward `highWaterBytes` (oldest artifacts first, then oldest sessions)
 
 ### Performance caveat for large stores

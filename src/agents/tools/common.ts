@@ -7,6 +7,8 @@ import { sanitizeToolResultImages } from "../tool-images.js";
 // oxlint-disable-next-line typescript/no-explicit-any
 export type AnyAgentTool = AgentTool<any, unknown> & {
   ownerOnly?: boolean;
+  /** If true, this tool is kept out of the initial context and discovered via tool_search. */
+  deferred?: boolean;
 };
 
 export type StringParamOptions = {

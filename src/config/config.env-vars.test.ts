@@ -100,20 +100,23 @@ describe("config env vars", () => {
   });
 
   it("loads ${VAR} substitutions from ~/.openclaw/.env on repeated runtime loads", async () => {
+    // Use a test-specific var name that is guaranteed absent from any real .env
+    // file, so CWD's dotenv load cannot shadow the state-dir .env value.
+    const TEST_VAR = "OPENCLAW_TEST_REPEATED_DOTENV_VAR";
     await withTempHome(async (_home) => {
-      await withEnvOverride({ BRAVE_API_KEY: undefined }, async () => {
+      await withEnvOverride({ [TEST_VAR]: undefined }, async () => {
         const stateDir = process.env.OPENCLAW_STATE_DIR?.trim();
         if (!stateDir) {
           throw new Error("Expected OPENCLAW_STATE_DIR to be set by withTempHome");
         }
         await fs.mkdir(stateDir, { recursive: true });
-        await fs.writeFile(path.join(stateDir, ".env"), "BRAVE_API_KEY=from-dotenv\n", "utf-8");
+        await fs.writeFile(path.join(stateDir, ".env"), `${TEST_VAR}=from-dotenv\n`, "utf-8");
 
         const config: OpenClawConfig = {
           tools: {
             web: {
               search: {
-                apiKey: "${BRAVE_API_KEY}",
+                apiKey: `\${${TEST_VAR}}`,
               },
             },
           },
@@ -123,7 +126,7 @@ describe("config env vars", () => {
         const first = resolveConfigEnvVars(config, process.env) as OpenClawConfig;
         expect(first.tools?.web?.search?.apiKey).toBe("from-dotenv");
 
-        delete process.env.BRAVE_API_KEY;
+        delete process.env[TEST_VAR];
         loadDotEnv({ quiet: true });
         const second = resolveConfigEnvVars(config, process.env) as OpenClawConfig;
         expect(second.tools?.web?.search?.apiKey).toBe("from-dotenv");

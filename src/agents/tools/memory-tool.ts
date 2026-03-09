@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { Type } from "@sinclair/typebox";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { MemoryCitationsMode } from "../../config/types.memory.js";
@@ -5,7 +7,7 @@ import { resolveMemoryBackendConfig } from "../../memory/backend-config.js";
 import { getMemorySearchManager } from "../../memory/index.js";
 import type { MemorySearchResult } from "../../memory/types.js";
 import { parseAgentSessionKey } from "../../routing/session-key.js";
-import { resolveSessionAgentId } from "../agent-scope.js";
+import { resolveAgentWorkspaceDir, resolveSessionAgentId } from "../agent-scope.js";
 import { resolveMemorySearchConfig } from "../memory-search.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readNumberParam, readStringParam } from "./common.js";
@@ -20,6 +22,11 @@ const MemoryGetSchema = Type.Object({
   path: Type.String(),
   from: Type.Optional(Type.Number()),
   lines: Type.Optional(Type.Number()),
+});
+
+const MemoryWriteSchema = Type.Object({
+  content: Type.String(),
+  section: Type.Optional(Type.String()),
 });
 
 function resolveMemoryToolContext(options: { config?: OpenClawConfig; agentSessionKey?: string }) {
@@ -43,6 +50,13 @@ export function createMemorySearchTool(options: {
 }): AnyAgentTool | null {
   const ctx = resolveMemoryToolContext(options);
   if (!ctx) {
+    return null;
+  }
+  // Memory contains personal context (Confidential tier) — only expose in private
+  // (direct) conversations. Group/channel sessions must not access memory.
+  // Ambiguous keys (CLI, main session) default to "direct", preserving current behavior.
+  const chatType = deriveChatTypeFromSessionKey(options.agentSessionKey);
+  if (chatType === "group" || chatType === "channel") {
     return null;
   }
   const { cfg, agentId } = ctx;
@@ -106,6 +120,11 @@ export function createMemoryGetTool(options: {
   if (!ctx) {
     return null;
   }
+  // Same privacy gate as createMemorySearchTool — no memory access in shared contexts.
+  const chatType = deriveChatTypeFromSessionKey(options.agentSessionKey);
+  if (chatType === "group" || chatType === "channel") {
+    return null;
+  }
   const { cfg, agentId } = ctx;
   return {
     label: "Memory Get",
@@ -135,6 +154,74 @@ export function createMemoryGetTool(options: {
         const message = err instanceof Error ? err.message : String(err);
         return jsonResult({ path: relPath, text: "", disabled: true, error: message });
       }
+    },
+  };
+}
+
+export function createMemoryWriteTool(options: {
+  config?: OpenClawConfig;
+  agentSessionKey?: string;
+}): AnyAgentTool | null {
+  const ctx = resolveMemoryToolContext(options);
+  if (!ctx) {
+    return null;
+  }
+  // Same privacy gate as the other memory tools — no writes in shared contexts.
+  const chatType = deriveChatTypeFromSessionKey(options.agentSessionKey);
+  if (chatType === "group" || chatType === "channel") {
+    return null;
+  }
+  const { cfg, agentId } = ctx;
+  return {
+    label: "Memory Write",
+    name: "memory_write",
+    description:
+      "Append a note to today's daily memory file (memory/YYYY-MM-DD.md). " +
+      "Use this to capture tasks, decisions, observations, or anything worth remembering. " +
+      "Provide an optional section header to group related notes (e.g. 'Tasks', 'Decisions'). " +
+      "Notes are immediately indexed for future memory_search queries.",
+    parameters: MemoryWriteSchema,
+    execute: async (_toolCallId, params) => {
+      const content = readStringParam(params, "content", { required: true });
+      const section = readStringParam(params, "section");
+
+      const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+      const memoryDir = path.join(workspaceDir, "memory");
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const filePath = path.join(memoryDir, `${today}.md`);
+
+      // Timestamp prefix for each entry (HH:MM in local time)
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      const timestamp = `<!-- ${hh}:${mm} -->`;
+
+      const lines: string[] = [];
+      if (section) {
+        lines.push(`\n## ${section}`);
+      }
+      lines.push(`\n${timestamp}\n${content.trimEnd()}`);
+      const entry = lines.join("\n");
+
+      try {
+        await fs.mkdir(memoryDir, { recursive: true });
+        await fs.appendFile(filePath, entry + "\n");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResult({ ok: false, error: message, path: `memory/${today}.md` });
+      }
+
+      // Re-index so the new entry is searchable immediately.
+      const { manager } = await getMemorySearchManager({ cfg, agentId });
+      if (manager?.sync) {
+        try {
+          await manager.sync({ reason: "memory_write" });
+        } catch {
+          // Non-fatal: the entry is written; indexing will catch up on next sync.
+        }
+      }
+
+      return jsonResult({ ok: true, path: `memory/${today}.md`, section: section ?? null });
     },
   };
 }

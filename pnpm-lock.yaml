@@ -33,6 +33,9 @@ importers:
       '@aws-sdk/client-bedrock':
         specifier: ^3.1004.0
         version: 3.1004.0
+      '@azure/msal-node':
+        specifier: ^2.16.2
+        version: 2.16.3
       '@buape/carbon':
         specifier: 0.0.0-beta-20260216184201
         version: 0.0.0-beta-20260216184201(@discordjs/opus@0.10.0)(hono@4.12.5)(opusscript@0.1.1)
@@ -42,6 +45,12 @@ importers:
       '@discordjs/voice':
         specifier: ^0.19.0
         version: 0.19.0(@discordjs/opus@0.10.0)(opusscript@0.1.1)
+      '@googleapis/calendar':
+        specifier: ^14.2.0
+        version: 14.2.0
+      '@googleapis/gmail':
+        specifier: ^16.1.1
+        version: 16.1.1
       '@grammyjs/runner':
         specifier: ^2.0.3
         version: 2.0.3(grammy@1.41.1)
@@ -72,6 +81,9 @@ importers:
       '@mariozechner/pi-tui':
         specifier: 0.55.3
         version: 0.55.3
+      '@microsoft/microsoft-graph-client':
+        specifier: ^3.0.7
+        version: 3.0.7
       '@mozilla/readability':
         specifier: ^0.6.0
         version: 0.6.0
@@ -120,6 +132,9 @@ importers:
       file-type:
         specifier: ^21.3.0
         version: 21.3.0
+      google-auth-library:
+        specifier: ^10.1.0
+        version: 10.6.1
       grammy:
         specifier: ^1.41.1
         version: 1.41.1
@@ -899,9 +914,17 @@ packages:
     resolution: {integrity: sha512-XPArKLzsvl0Hf0CaGyKHUyVgF7oDnhKoP85Xv6M4StF/1AhfORhZudHtOyf2s+FcbuQ9dPRAjB8J2KvRRMUK2A==}
     engines: {node: '>=20.0.0'}
 
+  '@azure/msal-common@14.16.1':
+    resolution: {integrity: sha512-nyxsA6NA4SVKh5YyRpbSXiMr7oQbwark7JU9LMeg6tJYTSPyAGkdx61wPT4gyxZfxlSxMMEyAsWaubBlNyIa1w==}
+    engines: {node: '>=0.8.0'}
+
   '@azure/msal-common@16.1.0':
     resolution: {integrity: sha512-uiX0ChrRFbreXlPlDR8LwHKmZpJudDAr124iNWJKJ+b7MJUWXmvVU3idSi/c5lk1FwLVZeMxhQir3BGdV09I+g==}
     engines: {node: '>=0.8.0'}
+
+  '@azure/msal-node@2.16.3':
+    resolution: {integrity: sha512-CO+SE4weOsfJf+C5LM8argzvotrXw252/ZU6SM2Tz63fEblhH1uuVaaO4ISYFuN4Q6BhTo7I3qIdi8ydUQCqhw==}
+    engines: {node: '>=16'}
 
   '@azure/msal-node@5.0.5':
     resolution: {integrity: sha512-CxUYSZgFiviUC3d8Hc+tT7uxre6QkPEWYEHWXmyEBzaO6tfFY4hs5KbXWU6s4q9Zv1NP/04qiR3mcujYLRuYuw==}
@@ -1219,6 +1242,14 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
+
+  '@googleapis/calendar@14.2.0':
+    resolution: {integrity: sha512-oo6bikN3dl7n43vvknpPzJlCD8FZbs82h4bZLfDAx1wWRUkIusg6++RFQvOKF46rNXsUePqyVwnFx+8oOOyK1A==}
+    engines: {node: '>=12.0.0'}
+
+  '@googleapis/gmail@16.1.1':
+    resolution: {integrity: sha512-XFMMJvhpEoKzwBOHYrcbBu/jHS+8Aer5YmbMUsrZeJgXAbTD6K7K6+/1RJczXIqDoBzVDdECm4WtjAcvEHPLVg==}
+    engines: {node: '>=12.0.0'}
 
   '@grammyjs/runner@2.0.3':
     resolution: {integrity: sha512-nckmTs1dPWfVQteK9cxqxzE+0m1VRvluLWB8UgFzsjg62w3qthPJt0TYtJBEdG7OedvfQq4vnFAyE6iaMkR42A==}
@@ -1653,6 +1684,24 @@ packages:
   '@microsoft/agents-hosting@1.3.1':
     resolution: {integrity: sha512-570oJr93l1RcCNNaMVpOm+PgQkRgno/F65nH1aCWLIKLnw0o7iPoj+8Z5b7mnLMidg9lldVSCcf0dBxqTGE1/w==}
     engines: {node: '>=20.0.0'}
+
+  '@microsoft/microsoft-graph-client@3.0.7':
+    resolution: {integrity: sha512-/AazAV/F+HK4LIywF9C+NYHcJo038zEnWkteilcxC1FM/uK/4NVGDKGrxx7nNq1ybspAroRKT4I1FHfxQzxkUw==}
+    engines: {node: '>=12.0.0'}
+    peerDependencies:
+      '@azure/identity': '*'
+      '@azure/msal-browser': '*'
+      buffer: '*'
+      stream-browserify: '*'
+    peerDependenciesMeta:
+      '@azure/identity':
+        optional: true
+      '@azure/msal-browser':
+        optional: true
+      buffer:
+        optional: true
+      stream-browserify:
+        optional: true
 
   '@mistralai/mistralai@1.10.0':
     resolution: {integrity: sha512-tdIgWs4Le8vpvPiUEWne6tK0qbVc+jMenujnvTqOjogrJUsCSQhus0tHTU1avDDh5//Rq2dFgP9mWRAdIEoBqg==}
@@ -4542,6 +4591,10 @@ packages:
     resolution: {integrity: sha512-eAmLkjDjAFCVXg7A1unxHsLf961m6y17QFqXqAXGj/gVkKFrEICfStRfwUlGNfeCEjNRa32JEWOUTlYXPyyKvA==}
     engines: {node: '>=14'}
 
+  googleapis-common@8.0.1:
+    resolution: {integrity: sha512-eCzNACUXPb1PW5l0ULTzMHaL/ltPRADoPgjBlT8jWsTbxkCp6siv+qKJ/1ldaybCthGwsYFYallF7u9AkU4L+A==}
+    engines: {node: '>=18.0.0'}
+
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
@@ -6441,6 +6494,9 @@ packages:
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
+  url-template@2.0.8:
+    resolution: {integrity: sha512-XdVKMF4SJ0nP/O7XIPB0JwAEuT9lDIYnNsK8yGVe43y0AWoKeJNdv3ZNWh7ksJ6KqQFjOO6ox/VEitLnaVNufw==}
+
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
@@ -7620,7 +7676,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@azure/msal-common@14.16.1': {}
+
   '@azure/msal-common@16.1.0': {}
+
+  '@azure/msal-node@2.16.3':
+    dependencies:
+      '@azure/msal-common': 14.16.1
+      jsonwebtoken: 9.0.3
+      uuid: 8.3.2
 
   '@azure/msal-node@5.0.5':
     dependencies:
@@ -7959,6 +8023,18 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@googleapis/calendar@14.2.0':
+    dependencies:
+      googleapis-common: 8.0.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@googleapis/gmail@16.1.1':
+    dependencies:
+      googleapis-common: 8.0.1
+    transitivePeerDependencies:
+      - supports-color
 
   '@grammyjs/runner@2.0.3(grammy@1.41.0)':
     dependencies:
@@ -8443,6 +8519,11 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
+
+  '@microsoft/microsoft-graph-client@3.0.7':
+    dependencies:
+      '@babel/runtime': 7.28.6
+      tslib: 2.8.1
 
   '@mistralai/mistralai@1.10.0':
     dependencies:
@@ -11587,6 +11668,16 @@ snapshots:
 
   google-logging-utils@1.1.3: {}
 
+  googleapis-common@8.0.1:
+    dependencies:
+      extend: 3.0.2
+      gaxios: 7.1.3
+      google-auth-library: 10.6.1
+      qs: 6.14.2
+      url-template: 2.0.8
+    transitivePeerDependencies:
+      - supports-color
+
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
@@ -13813,6 +13904,8 @@ snapshots:
     dependencies:
       querystringify: 2.2.0
       requires-port: 1.0.0
+
+  url-template@2.0.8: {}
 
   util-deprecate@1.0.2: {}
 

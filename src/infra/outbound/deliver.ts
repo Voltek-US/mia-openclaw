@@ -40,12 +40,70 @@ import { ackDelivery, enqueueDelivery, failDelivery } from "./delivery-queue.js"
 import type { OutboundIdentity } from "./identity.js";
 import type { NormalizedOutboundPayload } from "./payloads.js";
 import { normalizeReplyPayloadsForDelivery } from "./payloads.js";
+import { redactPii } from "./redact-pii.js";
 import { isPlainTextSurface, sanitizeForPlainText } from "./sanitize-text.js";
 import type { OutboundSessionContext } from "./session-context.js";
 import type { OutboundChannel } from "./targets.js";
 
 export type { NormalizedOutboundPayload } from "./payloads.js";
 export { normalizeOutboundPayloads } from "./payloads.js";
+
+/**
+ * Route a notification through the priority queue.
+ *
+ * Classification happens automatically via the notify-queue config rules.
+ * Set `bypass: true` to skip the queue and deliver the message immediately
+ * (text is printed to stdout as a plain string — callers should pair this with
+ * a real channel adapter when integrating into full gateway delivery).
+ */
+export async function notifyViaQueue(params: {
+  message: string;
+  messageType?: string;
+  channel: string;
+  topic?: string;
+  /** When true, skip the queue and deliver immediately. */
+  bypass?: boolean;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  if (params.bypass) {
+    // Immediate path: no queue involvement.
+    process.stdout.write(`[${params.channel}] ${params.message}\n`);
+    return;
+  }
+
+  // Lazy imports keep this module free of circular dependencies.
+  const [
+    { openNotifyQueueDb, enqueueNotification },
+    { loadNotifyQueueConfig },
+    { classifyMessage },
+    { flushTier },
+  ] = await Promise.all([
+    import("../notify-queue/store.js"),
+    import("../notify-queue/config.js"),
+    import("../notify-queue/classifier.js"),
+    import("../notify-queue/flush.js"),
+  ]);
+
+  const config = loadNotifyQueueConfig();
+  const tier = await classifyMessage(params.message, params.messageType, config);
+
+  const db = openNotifyQueueDb();
+  enqueueNotification(db, {
+    tier,
+    channel: params.channel,
+    message: params.message,
+    topic: params.topic,
+    messageType: params.messageType,
+    metadata: params.metadata,
+  });
+
+  // Critical messages are flushed immediately.
+  if (tier === "critical") {
+    await flushTier(db, "critical", async (_channel: string, text: string) => {
+      process.stdout.write(`[${_channel}] ${text}\n`);
+    });
+  }
+}
 
 const log = createSubsystemLogger("outbound/deliver");
 const TELEGRAM_TEXT_LIMIT = 4096;
@@ -432,7 +490,10 @@ async function applyMessageSendingHook(params: {
         payloadSummary: params.payloadSummary,
       };
     }
-    if (sendingResult?.content == null) {
+    // Safety-net: redact personal PII that upstream classification rules may have missed.
+    const finalText = redactPii(sendingResult?.content ?? params.payloadSummary.text);
+    const textChanged = finalText !== params.payloadSummary.text;
+    if (sendingResult?.content == null && !textChanged) {
       return {
         cancelled: false,
         payload: params.payload,
@@ -441,14 +502,14 @@ async function applyMessageSendingHook(params: {
     }
     const payload = {
       ...params.payload,
-      text: sendingResult.content,
+      text: finalText,
     };
     return {
       cancelled: false,
       payload,
       payloadSummary: {
         ...params.payloadSummary,
-        text: sendingResult.content,
+        text: finalText,
       },
     };
   } catch {

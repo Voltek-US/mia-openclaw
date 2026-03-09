@@ -49,12 +49,17 @@ describe("Session Store Cache", () => {
     // Clear cache before each test
     clearSessionStoreCacheForTest();
 
+    // These tests validate the JSON file cache behavior (mtime/size invalidation).
+    // Use the JSON-only path so SQLite doesn't change the caching semantics.
+    process.env.OPENCLAW_SESSION_SQLITE = "0";
+
     // Reset environment variable
     delete process.env.OPENCLAW_SESSION_CACHE_TTL_MS;
   });
 
   afterEach(() => {
     clearSessionStoreCacheForTest();
+    delete process.env.OPENCLAW_SESSION_SQLITE;
     delete process.env.OPENCLAW_SESSION_CACHE_TTL_MS;
   });
 

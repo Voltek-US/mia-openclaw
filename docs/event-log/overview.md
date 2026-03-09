@@ -9,12 +9,14 @@ This section documents the structured event-logging infrastructure added to Open
 
 ## At a Glance
 
-| Component          | Location                | Purpose                                           |
-| ------------------ | ----------------------- | ------------------------------------------------- |
-| TypeScript library | `src/event-log/`        | Write events from any TypeScript code             |
-| Log viewer CLI     | `scripts/log-view.ts`   | Filter and tail JSONL files at the terminal       |
-| DB ingest script   | `scripts/log-ingest.ts` | Nightly parse into SQLite for structured querying |
-| Rotation script    | `scripts/log-rotate.ts` | Daily size-based rotation + monthly DB archiving  |
+| Component          | Location                 | Purpose                                           |
+| ------------------ | ------------------------ | ------------------------------------------------- |
+| TypeScript library | `src/event-log/`         | Write events from any TypeScript code             |
+| Log viewer CLI     | `scripts/log-view.ts`    | Filter and tail JSONL files at the terminal       |
+| DB ingest script   | `scripts/log-ingest.ts`  | Nightly parse into SQLite for structured querying |
+| Rotation script    | `scripts/log-rotate.ts`  | Daily size-based rotation + monthly DB archiving  |
+| Cron log database  | `scripts/cron-log-db.ts` | Central SQLite log for all cron job runs          |
+| Cron wrapper       | `scripts/cron-wrap.sh`   | Shell wrapper: PID lock, signal traps, timeout    |
 
 ## How Data Flows
 
@@ -41,3 +43,5 @@ Daily cron (log-rotate.ts)
 - [Database Ingest](log-ingest.md) — SQLite ingest script reference
 - [Log Rotation](log-rotate.md) — Rotation and monthly archiving reference
 - [Cron Setup](cron-setup.md) — Scheduling nightly ingest and daily rotation
+- [Cron Log Database](cron-log-db.md) — Central run log: start/end tracking, idempotency, failure alerts
+- [Cron Wrapper Script](cron-wrap.md) — PID lock, signal traps, and timeout for shell jobs

@@ -43,6 +43,7 @@ This page describes the current CLI behavior. If commands change, update this do
 - [`tui`](/cli/tui)
 - [`browser`](/cli/browser)
 - [`cron`](/cli/cron)
+- [`diag`](/cli/diag)
 - [`dns`](/cli/dns)
 - [`docs`](/cli/docs)
 - [`hooks`](/cli/hooks)
@@ -194,6 +195,17 @@ openclaw [--dev] [--profile <name>] <command>
     disable
     runs
     run
+  diag
+    health
+    cron
+      history
+      failures
+      stale
+    logs
+    model
+      status
+      canary
+    usage
   nodes
   devices
   node

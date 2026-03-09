@@ -1,53 +1,141 @@
 ---
 title: "Memory"
-summary: "How OpenClaw memory works (workspace files + automatic memory flush)"
+summary: "How OpenClaw memory works (daily notes, SQL DB, learnings, synthesis cron)"
 read_when:
   - You want the memory file layout and workflow
+  - You want to understand memory_write, learnings_record, or the synthesis cron
   - You want to tune the automatic pre-compaction memory flush
 ---
 
 # Memory
 
-OpenClaw memory is **plain Markdown in the agent workspace**. The files are the
-source of truth; the model only "remembers" what gets written to disk.
+OpenClaw memory has two layers:
+
+1. **Daily notes** (`memory/YYYY-MM-DD.md`) — raw, append-only capture written
+   by the agent during conversations.
+2. **SQL DB** — the canonical search store. The SQLite index (`~/.openclaw/memory/<agentId>.sqlite`)
+   is built automatically from daily notes and any extra paths you configure.
+   Agents recall from it via `memory_search`.
+
+`MEMORY.md` is no longer required. The SQL DB is the source of truth for recall;
+Markdown files are just the input that feeds it.
 
 Memory search tools are provided by the active memory plugin (default:
 `memory-core`). Disable memory plugins with `plugins.slots.memory = "none"`.
 
-## Memory files (Markdown)
+## Memory files
 
-The default workspace layout uses two memory layers:
+The default workspace layout:
 
-- `memory/YYYY-MM-DD.md`
-  - Daily log (append-only).
-  - Read today + yesterday at session start.
-- `MEMORY.md` (optional)
-  - Curated long-term memory.
-  - **Only load in the main, private session** (never in group contexts).
+- `memory/YYYY-MM-DD.md` — daily notes (append-only; one file per day).
+  - Indexed into the SQL DB automatically on write.
+  - Never loaded in group or channel sessions (Confidential tier).
+- `memory/heartbeat-state.json` — state file for the heartbeat loop.
+  - Tracks last-check timestamps; reset to null if corrupted.
 
 These files live under the workspace (`agents.defaults.workspace`, default
 `~/.openclaw/workspace`). See [Agent workspace](/concepts/agent-workspace) for the full layout.
 
 ## Memory tools
 
-OpenClaw exposes two agent-facing tools for these Markdown files:
+OpenClaw exposes three agent-facing memory tools:
 
-- `memory_search` — semantic recall over indexed snippets.
-- `memory_get` — targeted read of a specific Markdown file/line range.
+| Tool            | Direction | Description                                              |
+| --------------- | --------- | -------------------------------------------------------- |
+| `memory_search` | Read      | Semantic recall over indexed daily notes and extra paths |
+| `memory_get`    | Read      | Targeted read of a specific file/line range              |
+| `memory_write`  | Write     | Append a timestamped note to today's daily notes file    |
 
-`memory_get` now **degrades gracefully when a file doesn't exist** (for example,
-today's daily log before the first write). Both the builtin manager and the QMD
-backend return `{ text: "", path }` instead of throwing `ENOENT`, so agents can
-handle "nothing recorded yet" and continue their workflow without wrapping the
-tool call in try/catch logic.
+All three tools are **unavailable in group and channel sessions** — memory contains
+Confidential-tier data (personal details, daily notes). Ambiguous or CLI sessions
+default to direct (tools available).
+
+### `memory_write`
+
+Appends a note to `memory/YYYY-MM-DD.md` (today's date) in the agent workspace.
+After writing, it triggers a background re-index so the note is immediately
+searchable via `memory_search`.
+
+Parameters:
+
+| Parameter | Required | Description                                              |
+| --------- | -------- | -------------------------------------------------------- |
+| `content` | Yes      | The note text to append                                  |
+| `section` | No       | Optional section heading (e.g. `"Tasks"`, `"Decisions"`) |
+
+Example:
+
+```json
+{
+  "content": "User prefers bullet lists over tables in Discord replies",
+  "section": "Preferences"
+}
+```
+
+Produces in `memory/2026-03-08.md`:
+
+```markdown
+## Preferences
+
+<!-- 14:32 -->
+
+User prefers bullet lists over tables in Discord replies
+```
+
+### `memory_get`
+
+Degrades gracefully when a file does not exist — returns `{ text: "", path }`
+instead of throwing `ENOENT`, so agents can handle "nothing recorded yet"
+without try/catch logic.
+
+## Learnings system
+
+Alongside the file-based daily notes, OpenClaw maintains a **learnings SQLite DB**
+(`~/.openclaw/agents/<agentId>/sessions/learnings.sqlite`) for structured, typed
+records. This is the canonical store for synthesized insights.
+
+Two agent tools write and query this DB:
+
+| Tool               | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `learnings_record` | Insert a correction, insight, error pattern, or feature request |
+| `learnings_query`  | Query past learnings by type and optional keyword or category   |
+
+Both tools use the same privacy gate as the memory tools — unavailable in group/channel sessions.
+
+### Record types
+
+| `type`              | `category`     | Use case                                                        |
+| ------------------- | -------------- | --------------------------------------------------------------- |
+| `"learning"`        | `"correction"` | User corrected the agent's behavior                             |
+| `"learning"`        | `"insight"`    | Useful pattern discovered during an operation                   |
+| `"error_pattern"`   | —              | Recurring error signature (auto-deduplicates; increments count) |
+| `"feature_request"` | —              | Automation idea or improvement; requires `title`                |
+
+### Recall at session start
+
+The AGENTS.md template instructs the agent to call `learnings_query` on every
+private session start:
+
+```
+type=learning, category=correction
+```
+
+This surfaces recent corrections before the agent responds, reducing repeat mistakes.
+
+### Weekly synthesis
+
+The `scripts/memory-synthesize.ts` script reads the past week of daily notes,
+calls the LLM to extract durable items, and writes them into the learnings DB
+as `category=preference`, `category=pattern`, or `category=mistake`. See
+[Memory synthesis](/reference/memory-synthesis) for setup.
 
 ## When to write memory
 
-- Decisions, preferences, and durable facts go to `MEMORY.md`.
-- Day-to-day notes and running context go to `memory/YYYY-MM-DD.md`.
-- If someone says "remember this," write it down (do not keep it in RAM).
-- This area is still evolving. It helps to remind the model to store memories; it will know what to do.
-- If you want something to stick, **ask the bot to write it** into memory.
+- Use `memory_write` during conversations to capture tasks, decisions, and observations.
+- Use `learnings_record` immediately when the user corrects you (`category=correction`).
+- Use `learnings_record` for useful patterns you notice (`category=insight`).
+- If someone says "remember this," call `memory_write` (do not keep it in RAM).
 
 ## Automatic memory flush (pre-compaction ping)
 

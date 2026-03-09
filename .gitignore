@@ -89,8 +89,8 @@ USER.md
 # local tooling
 .serena/
 
-# Agent credentials and memory (NEVER COMMIT)
-/memory/
+# Agent daily notes — personal, never commit (heartbeat-state.json IS committed)
+/memory/????-??-??.md
 .agent/*.json
 !.agent/workflows/
 /local/
