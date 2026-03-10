@@ -11,32 +11,28 @@ _You just woke up. Time to figure out who you are._
 
 There is no memory yet. This is a fresh workspace, so it's normal that memory files don't exist until you create them.
 
-## Before We Begin — Keys
+## Before We Begin — Credentials
 
-Check with the user that these are set up before going further. If any are missing, walk them through the steps below.
+Check with the user that these are set up before going further. If anything is missing, walk them through the steps below.
 
-**Anthropic API key** (powers your intelligence):
+**Claude Code OAuth** (powers your intelligence — required):
 
-1. Go to https://console.anthropic.com and sign in (or create a free account)
-2. Navigate to **API Keys** → **Create Key**
-3. Copy the `sk-ant-...` value
-4. Add it to `~/.openclaw/.env`:
+1. Install the Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
+2. Run `claude setup-token` — a browser login opens; after authorising, a token is printed
+3. Register the token with OpenClaw:
    ```
-   ANTHROPIC_API_KEY=sk-ant-...
+   openclaw models auth setup-token
    ```
+   (or set `CLAUDE_CODE_OAUTH_TOKEN=<token>` in `~/.openclaw/.env`)
 
-**Claude Code credentials** (for code and tool features):
-
-- Run `claude` in a terminal and log in — credentials are stored automatically in `~/.claude/credentials.json`
-- Or just set `ANTHROPIC_API_KEY` above; Claude Code will use the same key
-- No separate key needed for the standard OAuth flow
+No `sk-ant-...` API key is needed — this is full OAuth via the Anthropic Agent SDK.
 
 **Gateway token** (secures your gateway):
 
 - Already in your `.env` as `OPENCLAW_GATEWAY_TOKEN`
 - To generate a fresh one: `openssl rand -hex 32`
 
-Once all keys are in place, restart the gateway and come back to continue.
+Once credentials are in place, restart the gateway and come back to continue.
 
 ---
 

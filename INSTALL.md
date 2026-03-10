@@ -6,24 +6,44 @@
 
 ---
 
-## Before you start — get your API key
+## Before you start — get your Claude credentials
 
-OpenClaw Voltek runs on Claude (Anthropic). You need an API key before anything works.
+OpenClaw Voltek authenticates via **Claude Code OAuth** (the Anthropic Agent SDK). This means you log in through the `claude` CLI — no raw API key needed.
 
-1. Go to [https://console.anthropic.com](https://console.anthropic.com) and sign in (or create a free account)
-2. Navigate to **API Keys → Create Key**
-3. Copy the value — it starts with `sk-ant-...`
-4. Keep it handy; the setup wizard will ask for it
+**Step 1 — Install the Claude Code CLI**
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Step 2 — Generate a setup token**
+
+```bash
+claude setup-token
+```
+
+This opens a browser login (or prints a URL). After you authorise, it prints a short-lived setup token. Copy it.
+
+**Step 3 — Keep the token ready**
+
+The OpenClaw setup wizard (`openclaw onboard`) will ask you to paste it. You can also set it as an environment variable:
+
+```bash
+export CLAUDE_CODE_OAUTH_TOKEN=<token from step 2>
+```
+
+That's it — no `sk-ant-...` API key required.
 
 ---
 
 ## Prerequisites
 
-| Requirement     | Version         | Notes                                        |
-| --------------- | --------------- | -------------------------------------------- |
-| Node.js         | **22 or newer** | The installer handles this automatically     |
-| Git             | any recent      | Required for some install paths              |
-| Internet access | —               | To pull packages and reach the Anthropic API |
+| Requirement                | Version         | Notes                                                |
+| -------------------------- | --------------- | ---------------------------------------------------- |
+| Node.js                    | **22 or newer** | The installer handles this automatically             |
+| Claude Code CLI (`claude`) | latest          | `npm install -g @anthropic-ai/claude-code` for OAuth |
+| Git                        | any recent      | Required for some install paths                      |
+| Internet access            | —               | To pull packages and reach Anthropic                 |
 
 ---
 
@@ -165,7 +185,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 After install, the wizard walks you through:
 
 1. **Gateway configuration** — port, network binding (loopback by default), auth token
-2. **Auth / API key** — paste your `ANTHROPIC_API_KEY` here
+2. **Auth** — choose the OAuth / setup-token option and paste the token from `claude setup-token`
 3. **Model selection** — defaults to the latest Claude model
 4. **Channel setup** — connect Telegram, WhatsApp, Slack, Discord, etc.
 5. **Skills** — enable web search, memory, and other tools
@@ -178,34 +198,31 @@ openclaw onboard --install-daemon
 
 ---
 
-## Configure your API key manually
+## Configure credentials manually
 
-If you skipped the wizard, add your key to `~/.openclaw/.env`:
+If you skipped the wizard or need to re-authorise, run:
 
 ```bash
-# Create or edit ~/.openclaw/.env
-echo 'ANTHROPIC_API_KEY=sk-ant-...' >> ~/.openclaw/.env
+# Re-generate a token
+claude setup-token
+
+# Register it with OpenClaw
+openclaw models auth setup-token
+```
+
+Or set the env var in `~/.openclaw/.env` before starting the gateway:
+
+```bash
+echo 'CLAUDE_CODE_OAUTH_TOKEN=<your token>' >> ~/.openclaw/.env
 ```
 
 On Windows (PowerShell):
 
 ```powershell
-Add-Content "$env:USERPROFILE\.openclaw\.env" "ANTHROPIC_API_KEY=sk-ant-..."
+Add-Content "$env:USERPROFILE\.openclaw\.env" "CLAUDE_CODE_OAUTH_TOKEN=<your token>"
 ```
 
----
-
-## Claude Code SDK credentials (optional)
-
-If you use Claude Code agent features:
-
-```bash
-# Log in once — credentials are saved automatically to ~/.claude/credentials.json
-claude
-
-# No separate key needed after that.
-# For headless/CI environments, ANTHROPIC_API_KEY is used automatically.
-```
+Tokens expire. If the gateway stops responding with auth errors, re-run `claude setup-token` and `openclaw models auth setup-token`.
 
 ---
 

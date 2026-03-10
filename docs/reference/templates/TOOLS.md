@@ -9,13 +9,13 @@ read_when:
 
 ## API Keys & Credentials
 
-| Key                     | Location                                                       |
-| ----------------------- | -------------------------------------------------------------- |
-| Anthropic API key       | `~/.openclaw/.env` → `ANTHROPIC_API_KEY`                       |
-| Claude Code credentials | `~/.claude/credentials.json` (auto-managed via `claude` login) |
-| Gateway token           | `~/.openclaw/.env` → `OPENCLAW_GATEWAY_TOKEN`                  |
-| Telegram bot token      | `~/.openclaw/.env` → `TELEGRAM_BOT_TOKEN`                      |
-| User Telegram chat ID   | `~/.openclaw/.env` → `USER_TELEGRAM_CHAT_ID`                   |
+| Key                   | Location                                                                   |
+| --------------------- | -------------------------------------------------------------------------- |
+| Claude OAuth token    | `~/.openclaw/.env` → `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) |
+| Anthropic API key     | `~/.openclaw/.env` → `ANTHROPIC_API_KEY` (optional fallback)               |
+| Gateway token         | `~/.openclaw/.env` → `OPENCLAW_GATEWAY_TOKEN`                              |
+| Telegram bot token    | `~/.openclaw/.env` → `TELEGRAM_BOT_TOKEN`                                  |
+| User Telegram chat ID | `~/.openclaw/.env` → `USER_TELEGRAM_CHAT_ID`                               |
 
 Get API keys: https://console.anthropic.com (Anthropic/Claude)
 Support: openclaw@voltekit.com
