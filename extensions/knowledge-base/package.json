@@ -1,0 +1,16 @@
+{
+  "name": "@openclaw/knowledge-base",
+  "version": "2026.3.9",
+  "private": true,
+  "description": "OpenClaw knowledge base — ingest URLs, how-tos, prompts, and known issues; query with semantic search",
+  "type": "module",
+  "devDependencies": {
+    "@clack/prompts": "^1.1.0",
+    "openclaw": "*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  }
+}

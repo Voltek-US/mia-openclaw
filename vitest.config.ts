@@ -52,6 +52,7 @@ const pluginSdkSubpaths = [
   "zalo",
   "zalouser",
   "keyed-async-queue",
+  "knowledge-base",
 ] as const;
 
 export default defineConfig({
