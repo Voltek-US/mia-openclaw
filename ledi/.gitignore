@@ -1,0 +1,13 @@
+# Database files (large, generated)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Environment files
+.env
+
+# Alert tracking
+context-alerted.json
+
+# OS
+.DS_Store
